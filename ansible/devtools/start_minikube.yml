@@ -1,0 +1,9 @@
+---
+- name: Démarrer Minikube avec Docker
+  hosts: all
+  become: false
+  tasks:
+    - name: Lancer Minikube en tant que sysadmin
+      become: false
+      become_user: sysadmin
+      command: minikube start --driver=docker

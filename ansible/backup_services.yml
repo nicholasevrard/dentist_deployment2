@@ -1,0 +1,36 @@
+---
+- name: Backup des services critiques
+  hosts: my_docker_hosts
+  gather_facts: yes
+
+  tasks:
+    - name: Créer le répertoire de sauvegarde local
+      file:
+        path: "/opt/backups"
+        state: directory
+        mode: '0755'
+
+    - name: Sauvegarder les données Grafana (VM5 uniquement)
+      ansible.builtin.command:
+        cmd: "rsync -az -e 'ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' sysadmin@{{ ansible_host }}:/var/lib/docker/volumes/grafana-storage/_data/ /opt/backups/grafana_{{ inventory_hostname }}/"
+      when: inventory_hostname == "VM5"
+
+    - name: Sauvegarder les données Jenkins (VM4 uniquement)
+      ansible.builtin.command:
+        cmd: "rsync -az -e 'ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' sysadmin@{{ ansible_host }}:/var/jenkins_home/ /opt/backups/jenkins_{{ inventory_hostname }}/"
+      when: inventory_hostname == "VM4"
+
+    - name: Sauvegarder la base de données PostgreSQL de Zabbix (VM5 uniquement)
+      ansible.builtin.command:
+        cmd: "ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no sysadmin@{{ ansible_host }} 'pg_dump -U zabbix -Fc zabbix_production > /tmp/zabbix_backup.dump'"
+      when: inventory_hostname == "VM5"
+
+    - name: Sauvegarder la base de données PostgreSQL de Zabbix (VM4 uniquement)
+      ansible.builtin.command:
+        cmd: "ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no sysadmin@{{ ansible_host }} 'pg_dump -U zabbix -Fc zabbix_production > /tmp/zabbix_backup.dump'"
+      when: inventory_hostname == "VM4"
+
+    - name: Copier la sauvegarde de Zabbix sur la VM2 (VM5 uniquement)
+      ansible.builtin.command:
+        cmd: "scp -i /root/.ssh/id_rsa sysadmin@{{ ansible_host }}:/tmp/zabbix_backup.dump sysadmin@192.168.8.119:/opt/backups/zabbix_{{ inventory_hostname }}/"
+      when: inventory_hostname == "VM5"

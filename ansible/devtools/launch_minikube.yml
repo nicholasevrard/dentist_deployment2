@@ -1,0 +1,10 @@
+---
+- import_playbook: devtools/install_minikube.yml
+- name: Pause pour redémarrage
+  hosts: VM6
+  tasks:
+    - name: Pause de 30 secondes pour redémarrage ou reconnexion
+      pause:
+        seconds: 30
+
+- import_playbook: devtools/start_minikube.yml

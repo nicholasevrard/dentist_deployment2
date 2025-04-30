@@ -1,0 +1,58 @@
+---
+- name: Installer Minikube et kubectl
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Installer les dépendances
+      apt:
+        name:
+          - curl
+          - wget
+          - apt-transport-https
+        state: present
+        update_cache: yes
+
+    - name: Télécharger Minikube
+      get_url:
+        url: "https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64"
+        dest: "/tmp/minikube-linux-amd64"
+        mode: '0755'
+
+    - name: Installer Minikube
+      copy:
+        src: /tmp/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: '0755'
+        remote_src: yes
+
+    - name: Télécharger et installer kubectl
+      shell: |
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+        chmod +x kubectl
+        mv kubectl /usr/local/bin/
+      args:
+        chdir: /tmp
+
+    - name: Vérifier l'installation de Minikube
+      command: minikube version
+      register: minikube_version
+      changed_when: false
+
+    - name: Afficher la version de Minikube
+      debug:
+        msg: "{{ minikube_version.stdout }}"
+
+    - name: Ajouter l'utilisateur sysadmin au groupe docker
+      user:
+        name: sysadmin
+        groups: docker
+        append: yes
+
+    - name: Redémarrer la machine pour appliquer les changements de groupe
+      reboot:
+        msg: "Redémarrage nécessaire pour que sysadmin rejoigne le groupe docker"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30

@@ -1,0 +1,21 @@
+---
+- name: Déployer les services et gérer le rollback en cas d'échec
+  hosts: all
+  become: yes
+  tasks:
+    - name: Appliquer le déploiement Kubernetes
+      command: "microk8s kubectl apply -f /path/to/deployment.yml"
+      register: deploy_result
+      failed_when: deploy_result.rc != 0
+      notify:
+        - Rollback en cas d'échec
+    - name: Vérifier le statut du déploiement
+      command: "microk8s kubectl rollout status deployment <nom_du_deployment>"
+      register: status_result
+      retries: 5
+      delay: 10
+      until: status_result.rc == 0
+  handlers:
+    - name: Rollback en cas d'échec
+      command: "microk8s kubectl rollout undo deployment <nom_du_deployment>"
+      when: deploy_result.failed

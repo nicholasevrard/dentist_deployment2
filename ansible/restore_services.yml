@@ -1,0 +1,56 @@
+---
+- name: Restaurer les services critiques
+  hosts: vm2
+  become: true
+  tasks:
+    - name: Créer le répertoire de restauration local (si non existant)
+      file:
+        path: "/mnt/backups"
+        state: directory
+        mode: "0755"
+
+    - name: Restaurer les données de Jenkins
+      docker_container:
+        name: jenkins_container
+        image: jenkins/jenkins:lts
+        state: started
+        volumes:
+          - /var/lib/docker/volumes/devtools_jenkins_data/_data:/var/jenkins_home
+        restart_policy: always
+        command: /bin/bash -c "cp -r /mnt/backups/jenkins_backup/* /var/jenkins_home/ && chown -R jenkins:jenkins /var/jenkins_home"
+
+    - name: Restaurer les données de SonarQube
+      docker_container:
+        name: sonarqube_container
+        image: sonarqube
+        state: started
+        volumes:
+          - /opt/sonarqube/data:/opt/sonarqube/data
+        restart_policy: always
+        command: /bin/bash -c "cp -r /mnt/backups/sonarqube_backup/* /opt/sonarqube/data/"
+
+    - name: Restaurer les données de Grafana
+      docker_container:
+        name: grafana_container
+        image: grafana/grafana
+        state: started
+        volumes:
+          - /var/lib/grafana:/var/lib/grafana
+        restart_policy: always
+        command: /bin/bash -c "cp -r /mnt/backups/grafana_backup/* /var/lib/grafana/"
+
+    - name: Restaurer les données de Zabbix (PostgreSQL)
+      postgresql_db:
+        name: zabbix
+        state: restored
+        target: "/mnt/backups/zabbix_backup/zabbix_backup.sql"
+
+    - name: Redémarrer les conteneurs après restauration
+      docker_container:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - jenkins_container
+        - sonarqube_container
+        - grafana_container
+        - postgresql

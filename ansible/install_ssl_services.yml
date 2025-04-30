@@ -1,0 +1,105 @@
+---
+- name: Installer SSL sur Jenkins, Grafana et Zabbix
+  hosts: all
+  become: true
+  tasks:
+    - name: Créer le dossier SSL s'il n'existe pas
+      file:
+        path: /home/sysadmin/ssl
+        state: directory
+        owner: sysadmin
+        group: sysadmin
+        mode: '0755'
+    - name: Copier les certificats SSL pour Jenkins (VM4)
+      when: inventory_hostname == "VM4"
+      copy:
+        src: files/jenkins.crt
+        dest: /home/sysadmin/ssl/jenkins.crt
+        owner: sysadmin
+        group: sysadmin
+        mode: '0644'
+    - name: Copier la clé privée SSL pour Jenkins (VM4)
+      when: inventory_hostname == "VM4"
+      copy:
+        src: files/jenkins.key
+        dest: /home/sysadmin/ssl/jenkins.key
+        owner: sysadmin
+        group: sysadmin
+        mode: '0600'
+    - name: Redémarrer le conteneur Jenkins avec SSL sur port 8085
+      when: inventory_hostname == "VM4"
+      shell: |
+        docker stop jenkins_container || true
+        docker rm jenkins_container || true
+        docker run -d \
+          --name jenkins_container \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /home/sysadmin/ssl:/certs \
+          -p 8085:8080 \
+          -p 50000:50000 \
+          jenkins/jenkins:lts \
+          --httpsPort=8080 \
+          --httpsCertificate=/certs/jenkins.crt \
+          --httpsPrivateKey=/certs/jenkins.key
+      args:
+        executable: /bin/bash
+    - name: Copier les certificats SSL pour Grafana (VM5)
+      when: inventory_hostname == "VM5"
+      copy:
+        src: files/grafana.crt
+        dest: /home/sysadmin/ssl/grafana.crt
+        owner: sysadmin
+        group: sysadmin
+        mode: '0644'
+    - name: Copier la clé privée SSL pour Grafana (VM5)
+      when: inventory_hostname == "VM5"
+      copy:
+        src: files/grafana.key
+        dest: /home/sysadmin/ssl/grafana.key
+        owner: sysadmin
+        group: sysadmin
+        mode: '0600'
+    - name: Redémarrer le conteneur Grafana avec SSL sur port 3000
+      when: inventory_hostname == "VM5"
+      shell: |
+        docker stop grafana_container || true
+        docker rm grafana_container || true
+        docker run -d \
+          --name grafana_container \
+          -v /home/sysadmin/ssl:/certs \
+          -p 3000:3000 \
+          grafana/grafana \
+          --cert_file=/certs/grafana.crt \
+          --cert_key=/certs/grafana.key
+      args:
+        executable: /bin/bash
+    - name: Copier les certificats SSL pour Zabbix Web (VM5)
+      when: inventory_hostname == "VM5"
+      copy:
+        src: files/zabbix.crt
+        dest: /home/sysadmin/ssl/zabbix.crt
+        owner: sysadmin
+        group: sysadmin
+        mode: '0644'
+    - name: Copier la clé privée SSL pour Zabbix Web (VM5)
+      when: inventory_hostname == "VM5"
+      copy:
+        src: files/zabbix.key
+        dest: /home/sysadmin/ssl/zabbix.key
+        owner: sysadmin
+        group: sysadmin
+        mode: '0600'
+    - name: Redémarrer le conteneur Zabbix Web avec SSL sur port 8080
+      when: inventory_hostname == "VM5"
+      shell: |
+        docker stop zabbix_web || true
+        docker rm zabbix_web || true
+        docker run -d \
+          --name zabbix_web \
+          -v /home/sysadmin/ssl:/certs \
+          -p 8080:8080 \
+          zabbix/zabbix-web-nginx-mysql:latest \
+          --with-ssl-cert=/certs/zabbix.crt \
+          --with-ssl-key=/certs/zabbix.key
+      args:
+        executable: /bin/bash
