@@ -1,1 +1,5 @@
 .ssh/id_rsa
+.ansible/
+.bash_history
+.launchpadlib/
+.lesshst
